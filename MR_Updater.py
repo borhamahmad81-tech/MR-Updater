@@ -189,22 +189,25 @@ def update_datetimes(doc, now_dt, signature_gap_seconds=5):
 def roll_lab_table(table, new_date_str):
     """
     Insert new_date_str as the new left-most (newest) column, push the rest
-    right by one, drop the oldest (right-most) column. The new column's data
-    cells are filled with a copy of the previous oldest column's values.
-    Table layout: col0 = label, cols 1..6 = date columns (1 newest .. 6 oldest).
+    right by one, drop the oldest (right-most) column, regardless of how many
+    date columns the table actually has (2, 3, 6, ... all supported).
+    The new column's data cells are filled with a copy of the previous
+    oldest column's values.
+    Table layout: col0 = label, cols 1..N = date columns (1 newest .. N oldest).
     """
     template_run = _find_template_run(table)
     for ri, row in enumerate(table.rows):
         cells = row.cells
-        if len(cells) < 7:
+        n = len(cells) - 1   # number of date columns
+        if n < 1:
             continue
-        vals = [cells[c].text for c in range(1, 7)]   # current cols 1..6
+        vals = [cells[c].text for c in range(1, n + 1)]   # current cols 1..n
         if ri == 0:
-            new_first = new_date_str                  # header gets the user's date
+            new_first = new_date_str                      # header gets the user's date
         else:
-            new_first = vals[5]                       # data gets a copy of the oldest
-        new_order = [new_first, vals[0], vals[1], vals[2], vals[3], vals[4]]
-        for idx, c in enumerate(range(1, 7)):
+            new_first = vals[-1]                          # data gets a copy of the oldest
+        new_order = [new_first] + vals[:-1]
+        for idx, c in enumerate(range(1, n + 1)):
             set_cell_text(cells[c], new_order[idx], template_run)
 
 
@@ -214,7 +217,7 @@ def update_lab_tables(doc, lab_date_dt, table_names=("Clinical Chemistry", "Hema
     done = []
     for t in doc.tables:
         head = t.rows[0].cells[0].text.strip()
-        if head in table_names and len(t.rows[0].cells) >= 7:
+        if head in table_names and len(t.rows[0].cells) >= 2:
             roll_lab_table(t, new_date_str)
             done.append(head)
     return done
